@@ -3,7 +3,7 @@ const Chunk = @import("Chunk.zig");
 
 const PNG = @This();
 
-const file_signature: u64 = 0x89504E470D0A1A0A;
+pub const file_signature: u64 = 0x89504E470D0A1A0A;
 
 chunks: []Chunk,
 

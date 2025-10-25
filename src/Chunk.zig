@@ -71,7 +71,7 @@ pub const DataType = enum(u32) {
     }
 };
 
-pub const StructuredData = union(enum) {
+const StructuredData = union(enum) {
     IHDR: IHDR,
     PLTE: PLTE,
 };
@@ -84,7 +84,7 @@ fn ChunkTypeStruct(comptime T: DataType) ?type {
     };
 }
 
-const DataStructures = struct {
+pub const DataStructures = struct {
     pub const IHDR = struct {
         width: u32,
         height: u32,
@@ -110,7 +110,7 @@ const DataStructures = struct {
     };
 
     // Placeholder
-    const PLTE = struct {
+    pub const PLTE = struct {
         palette: []const u8,
 
         const Self = @This();
