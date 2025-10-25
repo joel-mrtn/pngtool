@@ -27,7 +27,7 @@ pub fn init(allocator: std.mem.Allocator, bytes: []const u8) !PNG {
         };
 
         try chunks.append(allocator, chunk);
-        offset += 4 + 4 + chunk.length + 4;
+        offset += 4 + 4 + chunk.data_length + 4;
     }
 
     return .{

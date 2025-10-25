@@ -7,8 +7,8 @@ const PLTE = Chunk.DataStructures.PLTE;
 const EmptyChunk = Chunk.DataStructures.EmptyChunk;
 const UnstructuredChunk = Chunk.DataStructures.UnstructuredChunk;
 
-length: u32,
-type: DataType,
+data_length: u32,
+data_type: DataType,
 data: []const u8,
 crc: u32,
 
@@ -35,17 +35,17 @@ pub fn fromBytes(bytes: []const u8) !Chunk {
     }
 
     return Chunk{
-        .length = length,
-        .type = chunk_type,
+        .data_length = length,
+        .data_type = chunk_type,
         .data = data,
         .crc = crc,
     };
 }
 
-pub fn getStructuredData(self: *const Chunk) ?StructuredData {
-    return switch (self.type) {
-        .IHDR => .{ .IHDR = IHDR.fromBytes(self.data) },
-        .PLTE => .{ .PLTE = PLTE.fromBytes(self.data) },
+pub fn getStructuredData(self: *const Chunk) !?StructuredData {
+    return switch (self.data_type) {
+        .IHDR => .{ .IHDR = try IHDR.fromBytes(self.data) },
+        .PLTE => .{ .PLTE = try PLTE.fromBytes(self.data) },
         else => null,
     };
 }
@@ -96,7 +96,11 @@ pub const DataStructures = struct {
 
         const Self = @This();
 
-        pub fn fromBytes(bytes: []const u8) Self {
+        pub fn fromBytes(bytes: []const u8) !Self {
+            if (bytes.len != 13) {
+                return error.InvalidDataLength;
+            }
+
             return .{
                 .width = std.mem.readInt(u32, bytes[0..4], .big),
                 .height = std.mem.readInt(u32, bytes[4..8], .big),
@@ -109,14 +113,40 @@ pub const DataStructures = struct {
         }
     };
 
-    // Placeholder
     pub const PLTE = struct {
-        palette: []const u8,
+        palette_entries: []const Palette,
 
         const Self = @This();
 
-        pub fn fromBytes(bytes: []const u8) Self {
-            return .{ .palette = bytes };
+        pub fn fromBytes(bytes: []const u8) !Self {
+            if (bytes.len % 3 != 0) {
+                return error.InvalidDataLength;
+            }
+
+            const num_entries = bytes.len / 3;
+            if (num_entries > 256) {
+                return error.InvalidDataLength;
+            }
+
+            var buf: [256]Palette = undefined;
+            for (0..num_entries) |i| {
+                const offset = i * 3;
+                buf[i] = Palette{
+                    .r = bytes[offset + 0],
+                    .g = bytes[offset + 1],
+                    .b = bytes[offset + 2],
+                };
+            }
+
+            return Self{
+                .palette_entries = buf[0..num_entries],
+            };
         }
+
+        const Palette = struct {
+            r: u8,
+            g: u8,
+            b: u8,
+        };
     };
 };

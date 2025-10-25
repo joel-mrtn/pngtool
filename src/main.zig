@@ -16,8 +16,8 @@ pub fn main() !void {
     const chunks = png.chunks;
 
     for (chunks) |chunk| {
-        const data = chunk.getStructuredData() orelse {
-            std.debug.print("{s}: length={d}\n", .{ chunk.type.getName(), chunk.length });
+        const data = try chunk.getStructuredData() orelse {
+            std.debug.print("{s}: length={d}\n", .{ chunk.data_type.getName(), chunk.data_length });
             continue;
         };
 
@@ -26,7 +26,7 @@ pub fn main() !void {
                 std.debug.print("IHDR: width={d}, height={d}, bit_depth={d}\n", .{ ihdr.width, ihdr.height, ihdr.bit_depth });
             },
             .PLTE => |plte| {
-                std.debug.print("PLTE: length={d}\n", .{plte.palette.len});
+                std.debug.print("PLTE: palette_entries={d}\n", .{plte.palette_entries.len});
             },
         }
     }
