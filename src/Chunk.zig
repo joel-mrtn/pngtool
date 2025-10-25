@@ -97,9 +97,7 @@ pub const DataStructures = struct {
         const Self = @This();
 
         pub fn fromBytes(bytes: []const u8) !Self {
-            if (bytes.len != 13) {
-                return error.InvalidDataLength;
-            }
+            try Self.validateBytes(bytes);
 
             return .{
                 .width = std.mem.readInt(u32, bytes[0..4], .big),
@@ -111,6 +109,12 @@ pub const DataStructures = struct {
                 .interlace = bytes[12],
             };
         }
+
+        pub fn validateBytes(bytes: []const u8) !void {
+            if (bytes.len != 13) {
+                return error.InvalidDataLength;
+            }
+        }
     };
 
     pub const PLTE = struct {
@@ -119,16 +123,11 @@ pub const DataStructures = struct {
         const Self = @This();
 
         pub fn fromBytes(bytes: []const u8) !Self {
-            if (bytes.len % 3 != 0) {
-                return error.InvalidDataLength;
-            }
+            try Self.validateBytes(bytes);
 
             const num_entries = bytes.len / 3;
-            if (num_entries > 256) {
-                return error.InvalidDataLength;
-            }
-
             var buf: [256]Palette = undefined;
+
             for (0..num_entries) |i| {
                 const offset = i * 3;
                 buf[i] = Palette{
@@ -141,6 +140,17 @@ pub const DataStructures = struct {
             return Self{
                 .palette_entries = buf[0..num_entries],
             };
+        }
+
+        pub fn validateBytes(bytes: []const u8) !void {
+            if (bytes.len % 3 != 0) {
+                return error.InvalidDataLength;
+            }
+
+            const num_entries = bytes.len / 3;
+            if (num_entries > 256) {
+                return error.InvalidDataLength;
+            }
         }
 
         const Palette = struct {
