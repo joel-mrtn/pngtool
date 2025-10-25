@@ -4,8 +4,6 @@ const Chunk = @This();
 
 const IHDR = Chunk.DataStructures.IHDR;
 const PLTE = Chunk.DataStructures.PLTE;
-const EmptyChunk = Chunk.DataStructures.EmptyChunk;
-const UnstructuredChunk = Chunk.DataStructures.UnstructuredChunk;
 
 data_length: u32,
 data_type: DataType,
