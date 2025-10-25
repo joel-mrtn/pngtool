@@ -4,27 +4,13 @@ const Chunk = @This();
 
 const IHDR = Chunk.DataStructures.IHDR;
 const PLTE = Chunk.DataStructures.PLTE;
-const IDAT = Chunk.DataStructures.IDAT;
-const IEND = Chunk.DataStructures.IEND;
+const EmptyChunk = Chunk.DataStructures.EmptyChunk;
+const UnstructuredChunk = Chunk.DataStructures.UnstructuredChunk;
 
 length: u32,
-type: Type,
+type: DataType,
 data: []const u8,
 crc: u32,
-
-pub const Type = enum(u32) {
-    IHDR = 0x49484452,
-    PLTE = 0x504C5445,
-    IDAT = 0x49444154,
-    IEND = 0x49454E44,
-};
-
-pub const StructuredData = union(Type) {
-    IHDR: IHDR,
-    PLTE: PLTE,
-    IDAT: IDAT,
-    IEND: IEND,
-};
 
 pub fn fromBytes(bytes: []const u8) !Chunk {
     if (bytes.len < 12) {
@@ -38,7 +24,7 @@ pub fn fromBytes(bytes: []const u8) !Chunk {
     }
 
     const chunk_type_raw = std.mem.readInt(u32, bytes[4..8], .big);
-    const chunk_type = std.enums.fromInt(Type, chunk_type_raw) orelse return error.InvalidChunkType;
+    const chunk_type = std.enums.fromInt(DataType, chunk_type_raw) orelse return error.InvalidChunkType;
 
     const data = bytes[8 .. 8 + length];
     const crc = std.mem.readInt(u32, bytes[8 + length .. 12 + length][0..4], .big);
@@ -56,25 +42,45 @@ pub fn fromBytes(bytes: []const u8) !Chunk {
     };
 }
 
-pub fn getStructuredData(self: *const Chunk) StructuredData {
+pub fn getStructuredData(self: *const Chunk) ?StructuredData {
     return switch (self.type) {
         .IHDR => .{ .IHDR = IHDR.fromBytes(self.data) },
         .PLTE => .{ .PLTE = PLTE.fromBytes(self.data) },
-        .IDAT => .{ .IDAT = IDAT.fromBytes(self.data) },
-        .IEND => .{ .IEND = IEND.fromBytes(self.data) },
+        else => null,
     };
 }
 
-pub fn getStructuredDataFromType(self: *const Chunk, comptime T: Type) ChunkTypeStruct(T) {
-    return ChunkTypeStruct(T).fromBytes(self.data);
+pub fn getStructuredDataFromType(self: *const Chunk, comptime T: DataType) ?ChunkTypeStruct(T) {
+    const TypeStruct = ChunkTypeStruct(T) orelse return null;
+    return TypeStruct.fromBytes(self.data);
 }
 
-fn ChunkTypeStruct(comptime T: Type) type {
+pub const DataType = enum(u32) {
+    IHDR = 0x49484452,
+    PLTE = 0x504C5445,
+    IDAT = 0x49444154,
+    IEND = 0x49454E44,
+
+    pub fn getName(self: *const DataType) []const u8 {
+        return switch (self.*) {
+            .IHDR => "IHDR",
+            .PLTE => "PLTE",
+            .IDAT => "IDAT",
+            .IEND => "IEND",
+        };
+    }
+};
+
+pub const StructuredData = union(enum) {
+    IHDR: IHDR,
+    PLTE: PLTE,
+};
+
+fn ChunkTypeStruct(comptime T: DataType) ?type {
     return switch (T) {
         .IHDR => IHDR,
         .PLTE => PLTE,
-        .IDAT => IDAT,
-        .IEND => IEND,
+        else => null,
     };
 }
 
@@ -111,27 +117,6 @@ const DataStructures = struct {
 
         pub fn fromBytes(bytes: []const u8) Self {
             return .{ .palette = bytes };
-        }
-    };
-
-    // Placeholder
-    const IDAT = struct {
-        data: []const u8,
-
-        const Self = @This();
-
-        pub fn fromBytes(bytes: []const u8) Self {
-            return .{ .data = bytes };
-        }
-    };
-
-    // Placeholder
-    const IEND = struct {
-        const Self = @This();
-
-        pub fn fromBytes(bytes: []const u8) Self {
-            _ = bytes;
-            return .{};
         }
     };
 };

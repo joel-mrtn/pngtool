@@ -16,18 +16,17 @@ pub fn main() !void {
     const chunks = png.chunks;
 
     for (chunks) |chunk| {
-        switch (chunk.getStructuredData()) {
+        const data = chunk.getStructuredData() orelse {
+            std.debug.print("{s}: length={d}\n", .{ chunk.type.getName(), chunk.length });
+            continue;
+        };
+
+        switch (data) {
             .IHDR => |ihdr| {
                 std.debug.print("IHDR: width={d}, height={d}, bit_depth={d}\n", .{ ihdr.width, ihdr.height, ihdr.bit_depth });
             },
             .PLTE => |plte| {
                 std.debug.print("PLTE: length={d}\n", .{plte.palette.len});
-            },
-            .IDAT => |idat| {
-                std.debug.print("IDAT: length={d}\n", .{idat.data.len});
-            },
-            .IEND => {
-                std.debug.print("IEND: empty\n", .{});
             },
         }
     }
