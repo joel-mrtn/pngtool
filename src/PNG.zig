@@ -12,7 +12,11 @@ pub fn init(allocator: std.mem.Allocator, bytes: []const u8) !PNG {
     var chunks = std.ArrayList(Chunk).empty;
     defer chunks.deinit(allocator);
 
-    var offset: usize = 8; // skip signature
+    if (std.mem.readInt(u64, bytes[0..8], .big) != file_signature) {
+        return error.InvalidFileSignature;
+    }
+
+    var offset: usize = 8;
     while (offset < bytes.len) {
         const chunk = Chunk.fromBytes(bytes[offset..]) catch |err| {
             if (err == error.InvalidChunkType) {
