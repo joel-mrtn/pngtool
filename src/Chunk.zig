@@ -10,34 +10,66 @@ data_type: DataType,
 data: []const u8,
 crc: u32,
 
-pub fn fromBytes(bytes: []const u8) !Chunk {
+pub fn initFromReader(allocator: std.mem.Allocator, reader: *std.Io.Reader) !Chunk {
+    const data_length = try reader.takeInt(u32, .big);
+
+    const type_and_data = try reader.readAlloc(allocator, 4 + data_length);
+    defer allocator.free(type_and_data);
+
+    const crc = try reader.takeInt(u32, .big);
+    const chunk_hash = std.hash.Crc32.hash(type_and_data);
+    if (chunk_hash != crc) {
+        return error.InvalidCRC;
+    }
+
+    const chunk_type = std.enums.fromInt(DataType, std.mem.readInt(u32, type_and_data[0..4], .big)) orelse {
+        return error.InvalidChunkType;
+    };
+
+    const data: []u8 = try allocator.alloc(u8, data_length);
+    @memcpy(data, type_and_data[4..]);
+
+    return Chunk{
+        .data_length = data_length,
+        .data_type = chunk_type,
+        .data = data,
+        .crc = crc,
+    };
+}
+
+pub fn initFromBytes(allocator: std.mem.Allocator, bytes: []const u8) !Chunk {
     if (bytes.len < 12) {
         return error.InvalidChunkLength;
     }
 
-    const length = std.mem.readInt(u32, bytes[0..4], .big);
+    const data_length = std.mem.readInt(u32, bytes[0..4], .big);
 
-    if (bytes.len < 4 + 4 + length + 4) {
+    if (bytes.len < 4 + 4 + data_length + 4) {
         return error.InsufficientBytes;
     }
 
     const chunk_type_raw = std.mem.readInt(u32, bytes[4..8], .big);
     const chunk_type = std.enums.fromInt(DataType, chunk_type_raw) orelse return error.InvalidChunkType;
 
-    const data = bytes[8 .. 8 + length];
-    const crc = std.mem.readInt(u32, bytes[8 + length .. 12 + length][0..4], .big);
+    const data: []u8 = try allocator.alloc(u8, data_length);
+    @memcpy(data, bytes[8 .. 8 + data_length]);
+    const crc = std.mem.readInt(u32, bytes[8 + data_length .. 12 + data_length][0..4], .big);
 
-    const chunk_hash = std.hash.Crc32.hash(bytes[4 .. 8 + length]);
+    const chunk_hash = std.hash.Crc32.hash(bytes[4 .. 8 + data_length]);
     if (chunk_hash != crc) {
         return error.InvalidCRC;
     }
 
     return Chunk{
-        .data_length = length,
+        .data_length = data_length,
         .data_type = chunk_type,
         .data = data,
         .crc = crc,
     };
+}
+
+pub fn deinit(self: *Chunk, allocator: std.mem.Allocator) void {
+    allocator.free(self.data);
 }
 
 pub fn getStructuredData(self: *const Chunk) !?StructuredData {
